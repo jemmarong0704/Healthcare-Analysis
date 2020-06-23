@@ -1,0 +1,102 @@
+---
+title: "June 4 Code"
+author: "Jinman Rong"
+date: "6/2/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#rm(list = ls())
+library(scales)
+library(foreign)
+library(Hmisc)
+library(dplyr)
+library(tidyr)
+library(Matrix)
+library(purrr)
+library(ggplot2)
+library(corrplot)
+#install.packages("PerformanceAnalytics")
+library(PerformanceAnalytics)
+```
+
+# NHANES 2015-2016 Questionnaire Data
+```{r}
+# Diabetes_I
+DIQ_I = read.xport("/Users/jemma/Downloads/DIQ_I.XPT.txt") 
+```
+
+```{r}
+# diabetes
+diabetes_I <- DIQ_I %>% filter(DIQ010 !=7 & DIQ010 !=9 & DIQ010 != 3) %>% select("SEQN", "DIQ010") %>% drop_na()  # DIQ010: Doctor told you have diabetes
+diabetes_I$DIQ010 = case_when(diabetes_I$DIQ010==1~1,diabetes_I$DIQ010==2~0)
+diabetes_I$DIQ010 = as.factor(diabetes_I$DIQ010)
+nrow(diabetes_I)
+head(diabetes_I)
+```
+
+```{r}
+# Medical Conditions
+MCQ_I = read.xport("/Users/jemma/Downloads/MCQ_I.XPT") 
+MCQ_needed_I <- MCQ_I %>% filter(MCQ300C !=7 & MCQ300C !=9) %>% filter(MCQ365B !=7 & MCQ365B !=9) %>% select("SEQN","MCQ300C","MCQ365B") %>% drop_na() # MCQ300C: Close relative had diabetes? # MCQ366B: Doctor told you to exercise
+nrow(MCQ_needed_I)
+```
+
+```{r}
+# Demographic
+DEMO_I = read.xport("/Users/jemma/Downloads/DEMO_I.XPT") 
+# Race factor: RIDRETH3 - Race/Hispanic origin w/ NH Asian
+# Age factor: RIDAGEYR - Age in years at screening
+DEMO_needed_I <- DEMO_I [c("SEQN", "RIDRETH3","RIDAGEYR")] %>% drop_na()
+DEMO_needed_I <- fastDummies::dummy_cols(DEMO_needed_I, "RIDRETH3") %>% select(-"RIDRETH3")
+nrow(DEMO_needed_I)
+head(DEMO_needed_I)
+```
+
+```{r}
+# High Blood Pressure 
+BPX_I = read.xport("/Users/jemma/Downloads/BPX_I.XPT")
+BPX_needed_I1 <- BPX_I %>% select("SEQN", "BPXSY1", "BPXDI1", "BPXSY2", "BPXDI2", "BPXSY3", "BPXDI3") %>% drop_na() 
+BPX_needed_I2 <- BPX_needed_I1 %>% mutate(BPXSY_AVG = round(rowMeans(BPX_needed_I1[,c("BPXSY1","BPXSY2", "BPXSY3")]),2), BPXDI_AVG = round( rowMeans(BPX_needed_I1[,c("BPXDI1","BPXDI2", "BPXDI3")]),2))
+BPX_needed_I <- BPX_needed_I2 %>% select("SEQN", "BPXSY_AVG", "BPXDI_AVG")
+nrow(BPX_needed_I)
+```
+
+```{r}
+# Cholesterol
+TCHOL_I = read.xport("/Users/jemma/Downloads/TCHOL_I.XPT")
+TCHOL_needed_I <- TCHOL_I %>% select("SEQN","LBXTC") %>% drop_na()
+nrow(TCHOL_needed_I)
+```
+
+
+```{r}
+# vision
+DLQ_I = read.xport("/Users/jemma/Downloads/DLQ_I.XPT")
+DLQ_needed_I <- DLQ_I %>% filter(DLQ020 != 7 & DLQ020 != 9) %>% select("SEQN", "DLQ020") %>% drop_na()
+nrow(DLQ_needed_I)
+```
+
+```{r}
+# BMI
+BMX_I = read.xport("/Users/jemma/Downloads/BMX_I.XPT")
+BMX_needed_I <- BMX_I %>% select("SEQN","BMXBMI") %>% drop_na()
+nrow(BMX_needed_I )
+```
+
+
+```{r}
+# Join tables
+table_all_I = Reduce(function(x,y) merge(x = x, y = y, by = "SEQN"), 
+       list(diabetes_I, MCQ_needed_I, DEMO_needed_I, BPX_needed_I,TCHOL_needed_I, DLQ_needed_I,BMX_needed_I))
+col_name_I = c("SEQN", "Diabetes", "Family History", "Lack of Physical Activity",  "Age", "Race_Non-Hispanic White", "Race_Non-Hispanic Black", "Race_Mexican American", "Other Hispanic","Non-Hispanic Asian", "Other Race - Including Multi-Racial","Avg Systolic Blood Pres (3 times)", "Avg Diastolic Blood Pre (3 times)", "Cholesterol","Vision", "BMI")
+names(table_all_I) = col_name_I
+head(table_all_I)
+nrow(table_all_I)
+```
+
+```{r}
+write.csv(table_all_I, "/Users/jemma/Desktop/LifeBook/table_diabetes.csv")
+```
+

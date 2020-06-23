@@ -1,0 +1,121 @@
+---
+title: "June 8 Code"
+author: "Jinman Rong"
+date: "6/8/2020"
+output: html_document
+---
+
+```{r, include=FALSE}
+#rm(list = ls())
+library(dplyr)
+library(tidyverse)
+library(foreign)
+library(scales)
+```
+
+# NHANES 2015-2016 Questionnaire Data
+
+## Demographics: Race, Gender and age
+```{r}
+DEMO_I = read.xport("/Users/jemma/Downloads/DEMO_I.XPT") 
+DEMO_I_needed <- DEMO_I %>% select("SEQN", "RIAGENDR", "RIDRETH3","RIDAGEYR") %>% drop_na()
+
+# transfer to dummies
+DEMO_I_needed$RIAGENDR = case_when(DEMO_I_needed$RIAGENDR==1~1, DEMO_I_needed$RIAGENDR==2~0)
+DEMO_I_needed$RIAGENDR = as.factor(DEMO_I_needed$RIAGENDR)
+
+DEMO_I_needed <- fastDummies::dummy_cols(DEMO_I_needed, select_columns = "RIDRETH3")
+DEMO_I_needed_final <- DEMO_I_needed %>% select(-"RIDRETH3")
+
+# rescale continuous variable
+DEMO_I_needed_final <- DEMO_I_needed_final %>% mutate(rescaled_age = rescale(DEMO_I_needed_final$RIDAGEYR)) %>% select(-"RIDAGEYR")
+
+nrow(DEMO_I_needed_final)
+head(DEMO_I_needed_final)
+```
+
+## Diabetes
+```{r}
+DIQ_I = read.xport("/Users/jemma/Downloads/DIQ_I.XPT.txt") 
+DIQ_I_needed <- DIQ_I %>% filter(DIQ010 !=7 & DIQ010 != 9) %>% select("SEQN","DIQ010") %>% drop_na()
+summary(DIQ_I_needed)
+# transfer to dummies
+DIQ_I_needed$DIQ010 = case_when(DIQ_I_needed$DIQ010==1~1, DIQ_I_needed$DIQ010==2~0, DIQ_I_needed$DIQ010==3~0)
+DIQ_I_needed$DIQ010 = as.factor(DIQ_I_needed$DIQ010)
+nrow(DIQ_I_needed)
+head(DIQ_I_needed)
+```
+
+## High blood pressure
+```{r}
+BPQ_I = read.xport("/Users/jemma/Downloads/BPQ_I.XPT")
+BPQ_needed_I <- BPQ_I %>% filter(BPQ020 != 7 & BPQ020 != 9) %>% filter(BPQ030 != 7 & BPQ030 != 9) %>% select("SEQN","BPQ020", "BPQ030") %>% drop_na()
+BPQ_needed_I$BPQ020 <- case_when(BPQ_needed_I$BPQ020==1~1, BPQ_needed_I$BPQ020==2~0)
+BPQ_needed_I$BPQ020 = as.factor(BPQ_needed_I$BPQ020)
+
+BPQ_needed_I$BPQ030 <- case_when(BPQ_needed_I$BPQ030==1~1, BPQ_needed_I$BPQ030==2~0)
+BPQ_needed_I$BPQ030 = as.factor(BPQ_needed_I$BPQ030)
+nrow(BPQ_needed_I)
+head(BPQ_needed_I)
+```
+
+## Medical Conditions: Cardiovascular Disease (MCQ160c & MCQ160b & MCQ180b & MCQ160e)
+```{r}
+MCQ_I = read.xport("/Users/jemma/Downloads/MCQ_I.XPT")
+MCQ_I_needed <- MCQ_I %>% filter(MCQ160C != 7 & MCQ160C !=9) %>% filter(MCQ160B != 7 & MCQ160B !=9) %>% filter(MCQ160E != 7 & MCQ160E !=9) %>% select("SEQN", "MCQ160C", "MCQ160B", "MCQ160E") %>% drop_na()
+MCQ_I_needed$MCQ160C <- case_when(MCQ_I_needed$MCQ160C==1~1, MCQ_I_needed$MCQ160C==2~0)
+MCQ_I_needed$MCQ160C = as.factor(MCQ_I_needed$MCQ160C)
+
+MCQ_I_needed$MCQ160B <- case_when(MCQ_I_needed$MCQ160B==1~1, MCQ_I_needed$MCQ160B==2~0)
+MCQ_I_needed$MCQ160B = as.factor(MCQ_I_needed$MCQ160B)
+
+MCQ_I_needed$MCQ160E <- case_when(MCQ_I_needed$MCQ160E==1~1, MCQ_I_needed$MCQ160E==2~0)
+MCQ_I_needed$MCQ160E = as.factor(MCQ_I_needed$MCQ160E)
+nrow(MCQ_I_needed)
+head(MCQ_I_needed)
+```
+
+## Albumin
+```{r}
+ALB_CR_I = read.xport("/Users/jemma/Downloads/ALB_CR_I.XPT")
+head(ALB_CR_I)
+ALB_CR_I_needed <- ALB_CR_I %>% select("SEQN", "URDUMALC", "URDUCRLC","URDACT") %>% drop_na()
+# transfer to dummies 
+ALB_CR_I_needed$URDUMALC = as.factor(ALB_CR_I_needed$URDUMALC)
+ALB_CR_I_needed$URDUCRLC = as.factor(ALB_CR_I_needed$URDUCRLC)
+ALB_CR_I_needed_final <- ALB_CR_I_needed %>% mutate(abnormal = case_when(URDACT>30~1, URDACT<=30~0)) %>% select(-c("URDACT"))
+ALB_CR_I_needed_final$abnormal = as.factor(ALB_CR_I_needed_final$abnormal)
+nrow(ALB_CR_I_needed_final)
+head(ALB_CR_I_needed_final)
+```
+
+## Kidney Condition: Nighttime Urinate Freq
+```{r}
+KIQ_U_I = read.xport("/Users/jemma/Downloads/KIQ_U_I.XPT")
+head(KIQ_U_I)
+KIQ_U_I_needed <- KIQ_U_I %>% filter(KIQ480 != 7 & KIQ480 !=9) %>% select("SEQN", "KIQ480") %>% drop_na() 
+nrow(KIQ_U_I_needed)
+head(KIQ_U_I_needed)
+```
+
+## Join tables 
+```{r}
+# Join tables
+table_all_I = Reduce(function(x,y) merge(x = x, y = y, by = "SEQN"), 
+       list(DEMO_I_needed_final, DIQ_I_needed, BPQ_needed_I, MCQ_I_needed,KIQ_U_I_needed,ALB_CR_I_needed_final))
+nrow(table_all_I)
+head(table_all_I)
+
+nrow(table_all_I)
+```
+## Rename columns 
+```{r}
+column_names_table_all = c("SEQN","Gender", "Race: Non-Hispanic White", "Race: Non-Hispanic Black", "Race: Mexican American", "Race: Other Hispanic", "Race: Non-Hispanic Asian", "Race: Other Race - Including Multi-Racial", "Age", "Diabetes", "High blood pressure (1 time)", "High blood pressure (2 or more times)", "Coronary heart disease", "Congestive heart failure","Heart attack","# of times urinate in night", "Albumin","Creatinine","Nephritis")
+colnames(table_all_I) = column_names_table_all
+head(table_all_I)
+```
+
+```{r}
+write_csv(table_all_I, "/Users/jemma/Desktop/LifeBook/table_nephritis.csv")
+```
+

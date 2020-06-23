@@ -1,0 +1,147 @@
+---
+title: "Jun 9 Chronic liver disease and cirrhosis"
+author: "Jinman Rong"
+date: "6/9/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include=FALSE}
+#rm(list = ls())
+#gc()
+library(dplyr)
+library(tidyverse)
+library(foreign)
+library(scales)
+```
+
+# NHANES 2015-2016 Questionnaire Data
+
+## Demographics: Race and Gender
+```{r}
+DEMO_I = read.xport("/Users/jemma/Downloads/DEMO_I.XPT") 
+DEMO_I_needed <- DEMO_I %>% select("SEQN", "RIAGENDR", "RIDRETH3", "RIDAGEYR") %>% drop_na()
+
+# transfer to dummies
+DEMO_I_needed$RIAGENDR = case_when(DEMO_I_needed$RIAGENDR==1~1, DEMO_I_needed$RIAGENDR==2~0)
+DEMO_I_needed$RIAGENDR = as.factor(DEMO_I_needed$RIAGENDR)
+
+DEMO_I_needed <- fastDummies::dummy_cols(DEMO_I_needed, select_columns = "RIDRETH3") %>% select(-"RIDRETH3")
+
+
+# rescale age
+#DEMO_I_needed_final <- DEMO_I_needed %>% mutate(rescaled_Age = rescale(DEMO_I_needed$RIDAGEYR)) 
+
+nrow(DEMO_I_needed)
+head(DEMO_I_needed)
+```
+
+## Diabetes
+```{r}
+DIQ_I = read.xport("/Users/jemma/Downloads/DIQ_I.XPT.txt") 
+DIQ_I_needed <- DIQ_I %>% filter(DIQ010 !=7 & DIQ010 != 9) %>% select("SEQN","DIQ010") %>% drop_na()
+summary(DIQ_I_needed)
+# transfer to dummies
+DIQ_I_needed$DIQ010 = case_when(DIQ_I_needed$DIQ010==1~1, DIQ_I_needed$DIQ010==2~0, DIQ_I_needed$DIQ010==3~0)
+DIQ_I_needed$DIQ010 = as.factor(DIQ_I_needed$DIQ010)
+nrow(DIQ_I_needed)
+head(DIQ_I_needed)
+```
+
+## Hepatitis
+```{r}
+HEQ_I = read.xport("/Users/jemma/Downloads/HEQ_I.XPT")
+HEQ_I_needed <- HEQ_I %>% filter(HEQ010 !=7 & HEQ010 !=9) %>% filter(HEQ030 != 7 & HEQ030 != 9) %>% select("SEQN", "HEQ010", "HEQ030") %>% drop_na()
+# transfer to dummies
+HEQ_I_needed$HEQ010 = case_when(HEQ_I_needed$HEQ010 ==1~1,HEQ_I_needed$HEQ010 ==2~0)
+HEQ_I_needed$HEQ030 = case_when(HEQ_I_needed$HEQ030 ==1~1,HEQ_I_needed$HEQ030 ==2~0)
+HEQ_I_needed$HEQ010 = as.factor(HEQ_I_needed$HEQ010)
+HEQ_I_needed$HEQ030 = as.factor(HEQ_I_needed$HEQ030)
+nrow(HEQ_I_needed)
+head(HEQ_I_needed)
+```
+## Alcohol abuse
+```{r}
+ALQ_I <- read.xport("/Users/jemma/Downloads/ALQ_I.XPT")
+ALQ_I_needed <- ALQ_I %>% filter(ALQ151 !=7 & ALQ151 !=9) %>% filter(ALQ160 != 777 & ALQ160 != 999) %>% select("SEQN", "ALQ151", "ALQ160") %>% drop_na()
+# transfer to dummies
+ALQ_I_needed$ALQ151 = case_when(ALQ_I_needed$ALQ151==1~1,ALQ_I_needed$ALQ151==2~0)
+ALQ_I_needed$ALQ151 = as.factor(ALQ_I_needed$ALQ151)
+# rescale continuous variable
+#ALQ_I_needed_final <- ALQ_I_needed %>% mutate(rescaled_ALQ160 = rescale(ALQ_I_needed$ALQ160)) %>% select("SEQN", "ALQ151","rescaled_ALQ160")
+nrow(ALQ_I_needed)
+head(ALQ_I_needed)
+```
+## Kidney failure 
+```{r}
+KIQ_U_I = read.xport("/Users/jemma/Downloads/KIQ_U_I.XPT")
+head(KIQ_U_I)
+KIQ_U_I_needed <- KIQ_U_I %>% filter(KIQ022 != 7 & KIQ022 != 9) %>% select("SEQN","KIQ022") %>% drop_na()
+KIQ_U_I_needed$KIQ022 = case_when(KIQ_U_I_needed$KIQ022==1~1,KIQ_U_I_needed$KIQ022==2~0)
+KIQ_U_I_needed$KIQ022 = as.factor(KIQ_U_I_needed$KIQ022)
+nrow(KIQ_U_I_needed)
+head(KIQ_U_I_needed)
+```
+## Medical conditions: liver condition
+```{r}
+MCQ_I = read.xport("/Users/jemma/Downloads/MCQ_I.XPT")
+MCQ_I_needed <- MCQ_I %>% filter(MCQ160L != 7 & MCQ160L != 9) %>% select("SEQN","MCQ160L") %>% drop_na()
+MCQ_I_needed$MCQ160L = case_when(MCQ_I_needed$MCQ160L==1~1, MCQ_I_needed$MCQ160L==2~0)
+MCQ_I_needed$MCQ160L = as.factor(MCQ_I_needed$MCQ160L)
+nrow(MCQ_I_needed)
+head(MCQ_I_needed)
+```
+
+## alanine transaminase (ALT) & 2)	aspartate aminotransferase (AST) & 3)	alkaline phosphatase (ALP) & albumin & bilirubin & γ-glutamyltransferase
+```{r}
+BIOPRO_I = read.xport("/Users/jemma/Downloads/BIOPRO_I.XPT")
+BIOPRO_I_needed <- BIOPRO_I %>% select("SEQN","LBXSATSI","LBXSASSI","LBXSAPSI","LBDSALSI","LBXSTB","LBXSGTSI") %>% drop_na()
+# rescale continuous variables
+#BIOPRO_I_needed_final <- BIOPRO_I_needed %>% mutate(rescaled_LBXSATSI = rescale(BIOPRO_I_needed$LBXSATSI), rescaled_LBXSASSI =rescale(BIOPRO_I_needed$LBXSASSI), rescaled_LBXSAPSI = rescale(BIOPRO_I_needed$LBXSAPSI), rescaled_LBDSALSI = rescale(BIOPRO_I_needed$LBDSALSI), rescaled_LBXSTB = rescale(BIOPRO_I_needed$LBXSTB), rescaled_LBXSGTSI = rescale(BIOPRO_I_needed$LBXSGTSI)) %>% select("SEQN","rescaled_LBXSATSI","rescaled_LBXSASSI","rescaled_LBXSAPSI","rescaled_LBDSALSI","rescaled_LBXSTB","rescaled_LBXSGTSI")
+nrow(BIOPRO_I_needed)
+head(BIOPRO_I_needed)
+```
+
+## Body Measures
+```{r}
+BMX_I = read.xport("/Users/jemma/Downloads/BMX_I.XPT")
+BMX_needed_I <- BMX_I %>% select("SEQN","BMXBMI","BMXWAIST") %>% drop_na()
+# transfer to dummies
+#BMX_needed_I_final <- BMX_needed_I %>% mutate(rescaled_BMXBMI = rescale(BMX_needed_I$BMXBMI), rescaled_BMXWAIST = rescale(BMX_needed_I$BMXWAIST)) %>% select("SEQN","rescaled_BMXBMI","rescaled_BMXWAIST")
+nrow(BMX_needed_I)
+head(BMX_needed_I)
+```
+# Triglycerides 
+```{r}
+TRIGLY_I = read.xport("/Users/jemma/Downloads/TRIGLY_I.XPT")
+TRIGLY_I_needed <- TRIGLY_I %>% select("SEQN","LBXTR") %>% drop_na()
+#TRIGLY_I_needed_final <- TRIGLY_I_needed %>% mutate(rescaled_LBXTR = rescale(TRIGLY_I_needed$LBXTR)) %>% select("SEQN","rescaled_LBXTR")
+nrow(TRIGLY_I_needed)
+head(TRIGLY_I_needed)
+```
+
+## Join tables
+```{r}
+# Join tables
+table_all_I = Reduce(function(x,y) merge(x = x, y = y, by = "SEQN"), 
+       list(DEMO_I_needed, DIQ_I_needed, HEQ_I_needed, ALQ_I_needed,KIQ_U_I_needed,MCQ_I_needed, BIOPRO_I_needed,BMX_needed_I,TRIGLY_I_needed))
+nrow(table_all_I)
+head(table_all_I)
+table_all_I %>% filter(table_all_I$MCQ160L==1) %>% nrow()
+```
+```{r}
+colnames(table_all_I) = c("SEQN","Gender", "Age", "Race: Non-Hispanic White", "Race: Non-Hispanic Black", "Race: Mexican American", "Race: Other Hispanic", "Race: Non-Hispanic Asian", "Race: Other Race - Including Multi-Racial", "Diabetes", "High blood pressure (1 time)", "High blood pressure (2 or more times)", "Coronary heart disease", "Congestive heart failure","Heart attack","# of times urinate in night", "Albumin","Creatinine","Nephritis")
+colnames(table_all_I) = column_names_table_all
+```
+
+```{r}
+write.csv(table_all_I, "/Users/jemma/Desktop/LifeBook/table_chronic_liver_disease_no_rescale.csv")
+```
+
+```{r}
+table_all_I %>% filter(MCQ160L==1) %>% nrow()
+```
+
